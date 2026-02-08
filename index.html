@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Vault | Finance & Sub Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: transparent; color: white; min-height: 100vh; overflow-x: hidden; }
+        .glass-panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1rem; }
+        .holographic-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid rgba(0, 206, 209, 0.2); background: rgba(0, 206, 209, 0.03); }
+        .holographic-card:hover { transform: scale(1.03); border-color: #00ced1; box-shadow: 0 0 15px rgba(0, 206, 209, 0.4); }
+        .teal-glow { text-shadow: 0 0 8px rgba(0, 206, 209, 0.6); }
+        .calendar-dot { width: 6px; height: 6px; background-color: #00ced1; box-shadow: 0 0 8px #00ced1; border-radius: 50%; margin: 2px auto 0; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        input { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: white; }
+        input:focus { outline: none; border-color: #00ced1; }
+        .day-cell:hover { background: rgba(0, 206, 209, 0.1); }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+            <h1 class="text-3xl font-semibold tracking-tight teal-glow uppercase">The Vault</h1>
+            <p class="text-white/60 text-sm">Tool Bank & Bill Matrix</p>
+        </div>
+        <div class="glass-panel px-6 py-4 flex flex-col items-end">
+            <span class="text-xs uppercase tracking-widest text-white/50">Monthly Burn</span>
+            <span id="total-burn" class="text-2xl font-mono text-[#00ced1]">$0.00</span>
+        </div>
+    </header>
+
+    <main class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <section class="lg:col-span-7">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-medium">Subscription Bank</h2>
+                <input type="text" id="sub-search" placeholder="Filter tools..." class="px-4 py-1 text-sm rounded-full w-48">
+            </div>
+            <div id="sub-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 h-[600px] overflow-y-auto pr-2 no-scrollbar"></div>
+        </section>
+
+        <section class="lg:col-span-5 space-y-6">
+            <div class="glass-panel p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 id="month-label" class="text-lg font-medium"></h2>
+                    <div class="flex gap-4">
+                        <button onclick="changeMonth(-1)"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                        <button onclick="changeMonth(1)"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-7 text-center text-[10px] uppercase tracking-tighter text-white/30 mb-4">
+                    <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+                </div>
+                <div id="calendar-days" class="grid grid-cols-7 gap-2"></div>
+            </div>
+
+            <div class="glass-panel p-6 flex justify-between items-center border-t-2 border-[#00ced1]/30">
+                <div>
+                    <h3 class="font-medium">Weekly Review</h3>
+                    <p class="text-xs text-white/50">Sync with Mission Control</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="sync-toggle" class="sr-only peer" onchange="handleSync(this)">
+                    <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-[#00ced1] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                </label>
+            </div>
+        </section>
+    </main>
+
+    <div id="bill-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden flex items-center justify-center z-50">
+        <div class="glass-panel p-8 w-full max-w-sm m-4">
+            <h3 class="text-xl font-semibold mb-6 text-[#00ced1]">Manage Bill</h3>
+            <input type="hidden" id="modal-date">
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] uppercase text-white/40 block mb-1 ml-1">Title</label>
+                    <input type="text" id="bill-title" class="w-full p-3 rounded-lg">
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase text-white/40 block mb-1 ml-1">Amount ($)</label>
+                    <input type="number" id="bill-amount" class="w-full p-3 rounded-lg">
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button onclick="closeModal()" class="flex-1 py-3 text-sm text-white/60 hover:text-white">Cancel</button>
+                    <button onclick="saveBill()" class="flex-1 py-3 text-sm bg-[#00ced1] text-black font-bold rounded-lg shadow-lg shadow-[#00ced1]/20">Save Entry</button>
+                </div>
+                <button id="delete-btn" onclick="deleteBill()" class="w-full text-xs text-red-400 opacity-60 hover:opacity-100 transition-opacity pt-2 hidden">Delete Permanent Entry</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUBS = [
+            { name: "Perplexity", url: "https://www.perplexity.ai/" }, { name: "Canva", url: "https://www.canva.com/" },
+            { name: "Julius AI", url: "https://julius.ai/" }, { name: "Lovable", url: "https://lovable.dev" },
+            { name: "Lyzr Studio", url: "https://studio.lyzr.ai/" }, { name: "Fireflies", url: "https://app.fireflies.ai/" },
+            { name: "Phot AI", url: "https://www.phot.ai" }, { name: "Hailuo AI", url: "https://hailuoai.video/" },
+            { name: "Vapi", url: "https://dashboard.vapi.ai/" }, { name: "Writesonic", url: "https://app.writesonic.com/" },
+            { name: "HeyGen", url: "https://app.heygen.com/" }, { name: "Chronicle", url: "https://app.chroniclehq.com/" },
+            { name: "Happenstance", url: "https://happenstance.ai/" }, { name: "MultipleChat", url: "https://multiplechat.ai/" },
+            { name: "Wispr Flow", url: "https://wisprflow.ai/" }, { name: "Retell AI", url: "https://www.retellai.com/" },
+            { name: "ElevenLabs", url: "https://elevenlabs.io/" }, { name: "MeetEmily", url: "https://meetemily.ai/" },
+            { name: "Bolt", url: "https://bolt.new/" }, { name: "LinkedIn", url: "https://www.linkedin.com/" },
+            { name: "OpenAI", url: "https://openai.com/" }, { name: "Pinecone", url: "https://www.pinecone.io/" },
+            { name: "n8n", url: "https://n8n.io/" }, { name: "Dify", url: "https://dify.ai/" },
+            { name: "Gumloop", url: "https://www.gumloop.com/" }, { name: "Google Sheets", url: "https://docs.google.com/spreadsheets" },
+            { name: "Google Labs", url: "https://labs.google/" }, { name: "NotebookLM", url: "https://notebooklm.google/" },
+            { name: "Apify", url: "https://apify.com/" }, { name: "SocialSonic", url: "https://app.socialsonic.com/" },
+            { name: "SuperGrow", url: "https://www.supergrow.ai/" }, { name: "VTurb", url: "https://app.vturb.com/" },
+            { name: "Kiwify", url: "https://dashboard.kiwify.com.br/" }, { name: "GoDaddy", url: "https://dcc.godaddy.com/" },
+            { name: "Hotmart", url: "https://app.hotmart.com/" }, { name: "Atomicat", url: "https://app.atomicat.com.br/" },
+            { name: "Supabase", url: "https://supabase.com/dashboard/" }, { name: "Facebook", url: "https://www.facebook.com/" }
+        ];
+
+        let bills = JSON.parse(localStorage.getItem('vault_bills')) || {};
+        let currentViewDate = new Date();
+
+        function renderSubs(filter = '') {
+            const grid = document.getElementById('sub-grid');
+            grid.innerHTML = SUBS.filter(s => s.name.toLowerCase().includes(filter.toLowerCase())).map(sub => `
+                <div class="glass-panel holographic-card p-4 flex flex-col items-center justify-center cursor-pointer text-center" onclick="window.open('${sub.url}', '_blank')">
+                    <i data-lucide="external-link" class="w-5 h-5 mb-2 text-[#00ced1]/60"></i>
+                    <span class="font-medium text-[13px] tracking-tight leading-tight">${sub.name}</span>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function renderCalendar() {
+            const daysContainer = document.getElementById('calendar-days');
+            const monthLabel = document.getElementById('month-label');
+            daysContainer.innerHTML = '';
+            const y = currentViewDate.getFullYear(), m = currentViewDate.getMonth();
+            monthLabel.innerText = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(currentViewDate);
+            const firstDay = new Date(y, m, 1).getDay(), daysInMonth = new Date(y, m + 1, 0).getDate();
+
+            for (let i = 0; i < firstDay; i++) daysContainer.innerHTML += `<div></div>`;
+            for (let d = 1; d <= daysInMonth; d++) {
+                const key = `${y}-${m + 1}-${d}`;
+                const hasBill = bills[key];
+                const dayEl = document.createElement('div');
+                dayEl.className = 'day-cell aspect-square flex flex-col items-center justify-center rounded-lg cursor-pointer text-xs transition-all border border-white/5';
+                dayEl.innerHTML = `<span>${d}</span>${hasBill ? '<div class="calendar-dot"></div>' : ''}`;
+                dayEl.onclick = () => openModal(key);
+                daysContainer.appendChild(dayEl);
+            }
+        }
+
+        function openModal(dateKey) {
+            document.getElementById('modal-date').value = dateKey;
+            const b = bills[dateKey];
+            document.getElementById('bill-title').value = b ? b.title : '';
+            document.getElementById('bill-amount').value = b ? b.amount : '';
+            document.getElementById('delete-btn').classList.toggle('hidden', !b);
+            document.getElementById('bill-modal').classList.remove('hidden');
+        }
+
+        function closeModal() { document.getElementById('bill-modal').classList.add('hidden'); }
+
+        function saveBill() {
+            const key = document.getElementById('modal-date').value;
+            const title = document.getElementById('bill-title').value;
+            const amount = parseFloat(document.getElementById('bill-amount').value);
+            if (title && amount) {
+                bills[key] = { title, amount };
+                localStorage.setItem('vault_bills', JSON.stringify(bills));
+                updateBurn(); renderCalendar(); closeModal();
+            }
+        }
+
+        function deleteBill() {
+            delete bills[document.getElementById('modal-date').value];
+            localStorage.setItem('vault_bills', JSON.stringify(bills));
+            updateBurn(); renderCalendar(); closeModal();
+        }
+
+        function updateBurn() {
+            const total = Object.values(bills).reduce((sum, b) => sum + (b.amount || 0), 0);
+            document.getElementById('total-burn').innerText = `$${total.toFixed(2)}`;
+        }
+
+        function handleSync(cb) {
+            if (cb.checked) {
+                window.parent.postMessage({ type: 'UPDATE_PROGRESS', appId: 'vault-01', completed: true }, '*');
+            }
+        }
+
+        function changeMonth(dir) { currentViewDate.setMonth(currentViewDate.getMonth() + dir); renderCalendar(); }
+        
+        document.getElementById('sub-search').addEventListener('input', (e) => renderSubs(e.target.value));
+        renderSubs(); renderCalendar(); updateBurn(); lucide.createIcons();
+    </script>
+</body>
+</html>
